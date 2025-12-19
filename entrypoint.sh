@@ -237,11 +237,19 @@ main() {
     echo "Skipping triggering the workflow."
   fi
 
+  echo "[DEBUG] run_ids before filtering: $run_ids" >&2
+
   if [ "${wait_workflow}" = true ]
   then
+    # Filter out empty and malformed run IDs (only digits)
     for run_id in $run_ids
     do
-      wait_for_workflow_to_finish "$run_id"
+      if [[ "$run_id" =~ ^[0-9]+$ ]]; then
+        echo "[DEBUG] Passing valid run_id to wait_for_workflow_to_finish: $run_id" >&2
+        wait_for_workflow_to_finish "$run_id"
+      else
+        echo "[ERROR] Skipping invalid run_id: '$run_id'" >&2
+      fi
     done
   else
     echo "Skipping waiting for workflow."
