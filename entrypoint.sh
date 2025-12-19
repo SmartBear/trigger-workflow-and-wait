@@ -150,10 +150,11 @@ trigger_workflow() {
     echo "[DEBUG] NEW_RUNS: $NEW_RUNS" >&2
   done
 
-  # Return new run ids
+  # Return new run ids (only numeric IDs)
   new_run_ids=$(join -v2 <(echo "$OLD_RUNS") <(echo "$NEW_RUNS"))
   echo "[DEBUG] New workflow run IDs: $new_run_ids" >&2
-  echo "$new_run_ids"
+  # Filter and print only valid numeric IDs, one per line
+  echo "$new_run_ids" | grep -Eo '^[0-9]+' || true
 }
 
 comment_downstream_link() {
@@ -241,14 +242,11 @@ main() {
 
   if [ "${wait_workflow}" = true ]
   then
-    # Filter out empty and malformed run IDs (only digits)
     for run_id in $run_ids
     do
       if [[ "$run_id" =~ ^[0-9]+$ ]]; then
         echo "[DEBUG] Passing valid run_id to wait_for_workflow_to_finish: $run_id" >&2
         wait_for_workflow_to_finish "$run_id"
-      else
-        echo "[ERROR] Skipping invalid run_id: '$run_id'" >&2
       fi
     done
   else
