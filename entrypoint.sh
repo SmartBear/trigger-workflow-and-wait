@@ -146,10 +146,14 @@ trigger_workflow() {
   do
     lets_wait
     NEW_RUNS=$(get_workflow_runs "$SINCE")
+    echo "[DEBUG] OLD_RUNS: $OLD_RUNS" >&2
+    echo "[DEBUG] NEW_RUNS: $NEW_RUNS" >&2
   done
 
   # Return new run ids
-  join -v2 <(echo "$OLD_RUNS") <(echo "$NEW_RUNS")
+  new_run_ids=$(join -v2 <(echo "$OLD_RUNS") <(echo "$NEW_RUNS"))
+  echo "[DEBUG] New workflow run IDs: $new_run_ids" >&2
+  echo "$new_run_ids"
 }
 
 comment_downstream_link() {
@@ -176,6 +180,14 @@ wait_for_workflow_to_finish() {
   echo "workflow_url=${last_workflow_url}" >> $GITHUB_OUTPUT
   echo ""
 
+  # Extra debug for malformed workflow id
+  if [[ -z "$last_workflow_id" || "$last_workflow_id" == "{"* ]]; then
+    echo "[ERROR] Malformed or empty workflow run ID: '$last_workflow_id'" >&2
+    echo "[ERROR] This usually means the workflow run was not triggered or the API response was unexpected." >&2
+    echo "[ERROR] Please check the previous logs for OLD_RUNS and NEW_RUNS values." >&2
+    exit 1
+  fi
+
   if [ -n "${INPUT_COMMENT_DOWNSTREAM_URL}" ]; then
     comment_downstream_link ${last_workflow_url}
   fi
@@ -188,6 +200,10 @@ wait_for_workflow_to_finish() {
     lets_wait
 
     workflow=$(api "runs/$last_workflow_id")
+    if [ -z "$workflow" ]; then
+      echo "[ERROR] No workflow data returned for run ID $last_workflow_id" >&2
+      break
+    fi
     conclusion=$(echo "${workflow}" | jq -r '.conclusion')
     status=$(echo "${workflow}" | jq -r '.status')
 
